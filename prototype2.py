@@ -1,6 +1,6 @@
 #Prototype 2 Code of NEA. This includes game-mode selection, checking wins and piece selection, as well as moving on to the actual main board.
 import pygame
-import Prototype1Code
+from prototype1 import login
 pygame.init()
 
 success, message = prototype1.register(username, password, password2)
