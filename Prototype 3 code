@@ -1,4 +1,6 @@
-#A small, playable London-themed Monopoly game.
+#Prototype 3 for my NEA. This is where the whole game happens for the Orignal, Speed and First to Get to Go! gamemodes.
+
+
 import random
 import pygame
 # Board spaces are stored in the standard 40-space UK Monopoly order.
