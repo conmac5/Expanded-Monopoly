@@ -1,0 +1,327 @@
+#A small, playable London-themed Monopoly game.
+import random
+import pygame
+# Board spaces are stored in the standard 40-space UK Monopoly order.
+# Each tuple has: (display name, space kind, colour group, purchase price, base rent).
+_BOARD = [
+    ("GO", "go", None, 0, 0), ("Old Kent Road", "property", "brown", 60, 2),
+    ("Community Chest", "chest", None, 0, 0), ("Whitechapel Road", "property", "brown", 60, 4),
+    ("Income Tax", "tax", None, 0, 200), ("King's Cross Station", "railroad", "railroad", 200, 25),
+    ("The Angel Islington", "property", "light blue", 100, 6), ("Chance", "chance", None, 0, 0),
+    ("Euston Road", "property", "light blue", 100, 6), ("Pentonville Road", "property", "light blue", 120, 8),
+    ("Jail / Just Visiting", "jail", None, 0, 0), ("Pall Mall", "property", "pink", 140, 10),
+    ("Electric Company", "utility", "utility", 150, 0), ("Whitehall", "property", "pink", 140, 10),
+    ("Northumberland Avenue", "property", "pink", 160, 12), ("Marylebone Station", "railroad", "railroad", 200, 25),
+    ("Bow Street", "property", "orange", 180, 14), ("Community Chest", "chest", None, 0, 0),
+    ("Marlborough Street", "property", "orange", 180, 14), ("Vine Street", "property", "orange", 200, 16),
+    ("Free Parking", "free", None, 0, 0), ("The Strand", "property", "red", 220, 18),
+    ("Chance", "chance", None, 0, 0), ("Fleet Street", "property", "red", 220, 18),
+    ("Trafalgar Square", "property", "red", 240, 20), ("Fenchurch St Station", "railroad", "railroad", 200, 25),
+    ("Leicester Square", "property", "yellow", 260, 22), ("Coventry Street", "property", "yellow", 260, 22),
+    ("Water Works", "utility", "utility", 150, 0), ("Piccadilly", "property", "yellow", 280, 24),
+    ("Go To Jail", "go_to_jail", None, 0, 0), ("Regent Street", "property", "green", 300, 26),
+    ("Oxford Street", "property", "green", 300, 26), ("Community Chest", "chest", None, 0, 0),
+    ("Bond Street", "property", "green", 320, 28), ("Liverpool Street Station", "railroad", "railroad", 200, 25),
+    ("Chance", "chance", None, 0, 0), ("Park Lane", "property", "blue", 350, 35),
+    ("Super Tax", "tax", None, 0, 100), ("Mayfair", "property", "blue", 400, 50),
+]
+
+# RGB values used for property-group strips along the tops of board tiles.
+_GROUP_COLORS = {"brown": (145,91,55), "light blue": (120,205,230), "pink": (220,115,165),
+ "orange": (235,145,55), "red": (220,65,65), "yellow": (240,205,70), "green": (55,155,90),
+ "blue": (65,105,205), "railroad": (65,65,75), "utility": (90,150,155)}
+
+# Consistent colours help distinguish players' pieces and ownership markers.
+_PLAYER_COLORS = [(225,75,75),(65,145,230),(245,190,45),(80,190,120)]
+
+def _short_name(name, limit=10):
+    if len(name) <= limit:
+        return name
+    if " " in name:
+        words = name.split()
+        part = ""
+        lines = []
+        for word in words:
+            candidate = (part + " " + word).strip()
+            if len(candidate) <= limit:
+                part = candidate
+            else:
+                if part:
+                    lines.append(part)
+                part = word[:limit]
+        if part:
+            lines.append(part)
+        return "\n".join(lines[:2])
+    return name[: limit - 1] + "…"
+
+
+def _wrapped_lines(text, font, width):
+    """Wrap a tile name into lines that fit the available pixel width."""
+    lines, line = [], ""
+    # Add words until the next one would exceed the allowed text width.
+    for word in text.split():
+        candidate = f"{line} {word}".strip()
+        if line and font.size(candidate)[0] > width:
+            lines.append(line)
+            line = word
+        while (
+            max((tile_font.size(text_line)[0] for text_line in lines), default=0) > max_width
+            or len(lines) * tile_font.get_linesize() > max_height
+                ) and tile_font.get_height() > 9:
+            tile_font = pygame.font.SysFont("Arial", tile_font.get_height() - 1, bold=True)
+            lines = _wrapped_lines(name, tile_font, max_width)
+        else:
+            line = candidate
+    # Keep the final partial line, if the input contained any words.
+    if line:
+        lines.append(line)
+    return lines
+max_width = 1100
+
+
+def run_game(screen, clock, username, piece="", mode="Original Monopoly", add_win=None):
+    """Run one game session using the screen and clock owned by the main app."""
+    # Read the screen dimensions and establish the colours used throughout the UI.
+    width, height = screen.get_size()
+    background, white, muted = (28,48,74), (245,245,245), (205,215,218)
+    panel, accent = (19,30,49), (220,48,58)
+
+    # Variants adjust starting money/GO rewards or end the game when someone passes GO.
+    speed, first_to_go = mode == "Speed Monopoly", mode == "First to Get to Go"
+    names = [username, "Alex (CPU)", "Sam (CPU)", "Taylor (CPU)"]
+    # The human is always player index 0; the other three players are automated.
+    players = [{"name": n, "cash": 2000 if speed else 1500, "position": 0, "active": True,
+                "color": _PLAYER_COLORS[i], "human": i == 0, "piece": piece if i == 0 else ""}
+               for i,n in enumerate(names)]
+
+    # Each board index contains None when unowned or the owning player's index.
+    owner = [None] * 40
+    # Track turn, dice, status message, and winner state for the game session.
+    current, rolled, dice, message, game_over, winner = 0, False, (1,1), "Roll the dice to begin your turn.", False, None
+    go_bonus = 300 if speed else 200
+
+    # Choose a cell size that fits the board into the available window.
+    cell = min(112, (height - 50) // 11, (width - 270) // 11)
+    board_size = cell * 11
+    board_x = max(235, (width - board_size) // 2 + 115)
+    board_y = max(20, (height - board_size) // 2)
+    sidebar = pygame.Rect(8, 8, 215, height-16)
+    # Keep every control inside the sidebar, below the player list.
+    menu_rect = pygame.Rect(20, height-58, 190, 40)
+    roll_rect = pygame.Rect(20, height-220, 190, 42)
+    buy_rect = pygame.Rect(20, height-166, 190, 42)
+    end_rect = pygame.Rect(20, height-112, 190, 42)
+
+    # Scale the board and tile text fonts with the cell size.
+    title_font = pygame.font.SysFont("arialblack", max(24, cell//3))
+    heading_font = pygame.font.SysFont("arialblack", max(16, cell//6))
+    body_font = pygame.font.SysFont("Arial", max(15, cell//7))
+    tile_font = pygame.font.SysFont("Arial", max(10, min(16, cell//8)), bold=True)
+    price_font = pygame.font.SysFont("Arial", max(10, min(15, cell//9)))
+    button_font = pygame.font.SysFont("Arial", 16, bold=True)
+    # CPU actions are delayed so the player can follow what happened.
+    cpu_deadline = pygame.time.get_ticks()
+
+    def draw_button(rect, label, enabled=True):
+        """Draw a button and visually indicate whether it is currently enabled."""
+        color = (54,105,115) if enabled else (72,78,80)
+        pygame.draw.rect(screen, color, rect, border_radius=6)
+        pygame.draw.rect(screen, (185,205,207), rect, 2, border_radius=6)
+        image = button_font.render(label, True, white if enabled else (150,155,155))
+        screen.blit(image, image.get_rect(center=rect.center))
+
+    def resolve(index, total):
+        """Apply the effect of the current player's landing space."""
+        nonlocal message, game_over, winner
+        p, pos = players[index], players[index]["position"]
+        name, kind, group, price, rent = _BOARD[pos]
+
+        # Properties, stations, and utilities may be bought or charge rent.
+        if kind in ("property", "railroad", "utility"):
+            own = owner[pos]
+            if own is None:
+                # Humans get a choice; CPUs automatically buy when they have enough cash.
+                if p["human"]:
+                    message = f"{name} for £{price}: buy or end turn."
+                elif p["cash"] >= price:
+                    p["cash"] -= price; owner[pos] = index
+                    message = f"{p['name']} bought {name}."
+                else:
+                    message = f"{p['name']} cannot afford {name}."
+            elif own != index and players[own]["active"]:
+                # Utility rent is based on the dice total and number of utilities owned.
+                if kind == "utility":
+                    count = sum(o == own and _BOARD[i][1] == "utility" for i,o in enumerate(owner))
+                    due = total * (10 if count == 1 else 20)
+                # Railroad rent increases as the owner collects more stations.
+                elif kind == "railroad":
+                    count = sum(o == own and _BOARD[i][1] == "railroad" for i,o in enumerate(owner))
+                    due = 25 * 2 ** max(0, count-1)
+                else:
+                    # Owning every property in a colour group doubles its base rent.
+                    due = rent
+                    group_spaces = [i for i,s in enumerate(_BOARD) if s[1] == "property" and s[2] == group]
+                    if all(owner[i] == own for i in group_spaces): due *= 2
+                # Transfer as much as the visitor can afford; an unpaid balance means bankruptcy.
+                paid = min(p["cash"], due); p["cash"] -= paid; players[own]["cash"] += paid
+                if paid < due: p["active"] = False
+                message = f"{p['name']} paid £{paid} rent to {players[own]['name']}."
+        elif kind == "tax":
+            # Taxes charge the listed amount, or bankrupt a player who cannot pay it all.
+            paid = min(p["cash"], rent); p["cash"] -= paid
+            if paid < rent: p["active"] = False
+            message = f"{p['name']} paid £{paid} tax."
+        elif kind == "chance":
+            # Chance cards are represented here as a random reward or penalty.
+            text, amount = random.choice([("Dividend",100),("Speeding fine",-50),("Prize",50),("Repairs",-100)])
+            if amount < 0 and p["cash"] < -amount: p["active"] = False
+            else: p["cash"] += amount
+            message = f"Chance: {text} £{abs(amount)}."
+        elif kind == "chest":
+            # Community Chest also applies a random cash change.
+            amount = random.choice([50,100,150,-50,-100])
+            if amount < 0 and p["cash"] < -amount: p["active"] = False
+            else: p["cash"] += amount
+            message = f"Community Chest: {'collect' if amount >= 0 else 'pay'} £{abs(amount)}."
+        elif kind == "go_to_jail":
+            # The prototype moves the player to jail but does not add jail-turn rules.
+            p["position"] = 10; message = f"{p['name']} was sent to Jail."
+        elif kind == "jail": message = f"{p['name']} is just visiting Jail."
+        elif kind == "free": message = f"{p['name']} landed on Free Parking."
+
+    def finish_check():
+        """Set the winner when at most one non-bankrupt player remains."""
+        nonlocal game_over, winner, message
+        remaining = [i for i,p in enumerate(players) if p["active"]]
+        if len(remaining) <= 1:
+            game_over = True; winner = remaining[0] if remaining else None
+            message = players[winner]["name"] + " wins!" if winner is not None else "Everyone is bankrupt."
+            # The account callback is used only when the human player wins.
+            if winner == 0 and add_win: add_win(username)
+
+    def roll():
+        """Roll both dice, move the current player, and resolve the destination."""
+        nonlocal dice, rolled, message, game_over, winner
+        if rolled or game_over: return
+        dice = (random.randint(1,6), random.randint(1,6)); rolled = True
+        p = players[current]; total = sum(dice); old = p["position"]
+        p["position"] = (old + total) % 40
+        # Passing the final board space awards GO money and may end this mode.
+        if old + total >= 40:
+            p["cash"] += go_bonus
+            if first_to_go:
+                game_over, winner = True, current; message = p["name"] + " passed GO and wins!"
+                if current == 0 and add_win: add_win(username)
+                return
+        message = f"{p['name']} rolled {dice[0]} + {dice[1]} = {total}."
+        resolve(current, total); finish_check()
+
+    def advance():
+        """Pass control to the next active player and reset the turn state."""
+        nonlocal current, rolled, message, cpu_deadline
+        if game_over: return
+        # Skip players who have gone bankrupt.
+        for _ in players:
+            current = (current+1) % len(players)
+            if players[current]["active"]: break
+        rolled = False; message = f"{players[current]['name']}'s turn."
+        cpu_deadline = pygame.time.get_ticks()+700; finish_check()
+
+    # Precompute each board square's screen position around the 11-by-11 perimeter.
+    positions = []
+    for i in range(40):
+        if i <= 10: col,row = 10-i,10
+        elif i <= 20: col,row = 0,10-(i-10)
+        elif i <= 30: col,row = i-20,0
+        else: col,row = 10,i-30
+        positions.append((board_x+col*cell, board_y+row*cell))
+
+    # Main game loop: draw the current state, update CPUs, and handle player input.
+    running = True
+    while running:
+        now = pygame.time.get_ticks(); screen.fill(background)
+        # Draw the sidebar, player list, balances, and selected human piece.
+        pygame.draw.rect(screen, panel, sidebar, border_radius=8)
+        screen.blit(heading_font.render("PLAYERS", True, accent), (20,22))
+        for i,p in enumerate(players):
+            y = 55+i*70
+            pygame.draw.circle(screen,p["color"],(27,y+10),7)
+            screen.blit(body_font.render(p["name"][:16],True,white if p["active"] else (130,130,130)),(40,y+2))
+            balance = f"£{p['cash']:,}" if p["active"] else "BANKRUPT"
+            screen.blit(body_font.render(balance,True,muted),(40,y+23))
+            if p["human"] and p["piece"]:
+                screen.blit(price_font.render("Piece: "+p["piece"],True,muted),(40,y+43))
+        human = current == 0 and players[0]["active"]
+
+        # Draw each tile, fitting its name inside the tile and showing price, owner, and tokens.
+        for i,(name,kind,group,price,rent) in enumerate(_BOARD):
+            x,y = positions[i]; rect = pygame.Rect(x,y,cell,cell)
+            pygame.draw.rect(screen,(235,220,155) if kind == "go" else (232,224,194),rect)
+            pygame.draw.rect(screen,(45,50,48),rect,1)
+            if group in _GROUP_COLORS:
+                pygame.draw.rect(screen,_GROUP_COLORS[group],(x+1,y+1,cell-2,max(5,cell//14)))
+            # Wrap to the actual inner width, then center the full set of lines in its text area.
+            max_width, max_height = cell-10, cell-36
+            lines = _wrapped_lines(name,tile_font,max_width)
+            # Shrink long labels until both their width and total height fit the tile.
+            while (max(lines and [tile_font.size(line)[0]] or [0]) > max_width or
+                   len(lines)*tile_font.get_linesize() > max_height) and tile_font.get_height() > 9:
+                tile_font = pygame.font.SysFont("Arial",tile_font.get_height()-1,bold=True)
+                lines = _wrapped_lines(name,tile_font,max_width)
+            block_h = len(lines)*tile_font.get_linesize()
+            start_y = y + max(cell//14+3, (cell-28-block_h)//2)
+            for line_no,line in enumerate(lines):
+                label = tile_font.render(line,True,(25,30,30))
+                screen.blit(label,label.get_rect(center=(x+cell//2,start_y+line_no*tile_font.get_linesize()+tile_font.get_linesize()//2)))
+            if price:
+                cost = price_font.render(f"£{price}",True,(45,50,48))
+                screen.blit(cost,cost.get_rect(center=(x+cell//2,y+cell-20)))
+            if owner[i] is not None:
+                pygame.draw.circle(screen,players[owner[i]]["color"],(x+cell-8,y+10),5)
+            occupants=[p for p in players if p["active"] and p["position"]==i]
+            for j,p in enumerate(occupants):
+                tx=int(x+cell//2+(j-(len(occupants)-1)/2)*13); ty=y+cell-8
+                pygame.draw.circle(screen,p["color"],(tx,ty),6); pygame.draw.circle(screen,(25,25,25),(tx,ty),6,1)
+
+        # The board center displays the title, mode, dice result, turn, and latest event.
+        center=pygame.Rect(board_x+cell,board_y+cell,cell*9,cell*9)
+        pygame.draw.rect(screen,(35,54,82),center); pygame.draw.rect(screen,(170,190,190),center,2)
+        for text,font,color,cy in [("LONDON MONOPOLY",title_font,white,center.y+48),(mode,body_font,accent,center.y+80),
+             (f"DICE: {dice[0]} + {dice[1]} = {sum(dice)}",heading_font,white,center.centery-10),
+             ("Turn: "+players[current]["name"],body_font,players[current]["color"],center.centery+20),
+             (message[:70],price_font,muted,center.centery+48)]:
+            img=font.render(text,True,color); screen.blit(img,img.get_rect(center=(center.centerx,cy)))
+
+        # Enable only actions that are valid for the human's current turn and board space.
+        if game_over:
+            draw_button(menu_rect,"Menu")
+        else:
+            property_here=_BOARD[players[0]["position"]][1] in ("property","railroad","utility")
+            can_buy=human and rolled and property_here and owner[players[0]["position"]] is None
+            draw_button(roll_rect,"Roll Dice",human and not rolled)
+            draw_button(buy_rect,"Buy Property",can_buy and players[0]["cash"]>=_BOARD[players[0]["position"]][3])
+            draw_button(end_rect,"End Turn",human and rolled); draw_button(menu_rect,"Menu")
+        pygame.display.flip()
+
+        # CPU players roll, then advance after a pause so the result remains visible.
+        if not game_over and current != 0 and players[current]["active"] and now >= cpu_deadline:
+            if not rolled: roll(); cpu_deadline=now+900
+            else: advance()
+
+        # Handle closing, Escape, and clicks on the game controls.
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE): running=False
+            elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if menu_rect.collidepoint(event.pos): running=False
+                elif not game_over and current == 0:
+                    if roll_rect.collidepoint(event.pos) and not rolled: roll()
+                    elif buy_rect.collidepoint(event.pos) and rolled:
+                        pos=players[0]["position"]; space=_BOARD[pos]
+                        if space[1] in ("property","railroad","utility") and owner[pos] is None and players[0]["cash"] >= space[3]:
+                            players[0]["cash"]-=space[3]; owner[pos]=0; message=f"You bought {space[0]} for £{space[3]}!"
+                    elif end_rect.collidepoint(event.pos) and rolled: advance()
+        # Cap rendering at 30 frames per second to keep the loop responsive.
+        clock.tick(30)
+
+    # Return whether the human won; the main application can then resume its menu.
+    return winner == 0
