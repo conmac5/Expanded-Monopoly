@@ -6,11 +6,9 @@ import csv
 import os
 USERS_FILE = Path(__file__).with_name("users.csv")
 import hashlib
+clock = pygame.time.Clock()
 
 pygame.init() 
-
-if os.path.exists(USERS_FILE):
-    with open(USERS_FILE, mode="r", newline="") as f:
 
 #Window screen setup
 screen_width = 800
@@ -40,62 +38,51 @@ def draw_text(text, font, text_colour, x, y):
 #CSV functions 
 
 #Register a new account 
-def register(username, password, password2): 
+def register(username, password, password2):
+    if not username or not password or not password2:
+        return False, "Please fill in all boxes!"
 
-    #Make sure all boxes have something in them 
-    if username == "" or password == "" or password2 == "": 
-       return False, "Please fill in all boxes!" 
- 
-    #Check that both passwords are the same 
-    if password != password2: 
-       return False, "Passwords do not match!" 
-    #Password strength test
-    if len(password) < 8 or len(password2) < 8:
+    if password != password2:
+        return False, "Passwords do not match!"
+
+    if len(password) < 8:
         return False, "Password length is too short"
-    
-    #Check whether the username already exists 
-    if os.path.exists("users.csv"): 
-       with open("users.csv", mode="r", newline="") as f: 
-           reader = csv.reader(f) 
-           for row in reader: 
-               if len(row) >= 1: 
-                    if row[0] == username: 
-                       return False, "Username already exists!" 
- 
-    #Add the new account to the CSV
-                    
-    with open("users.csv", mode="a", newline="") as f:
+
+    if os.path.exists(USERS_FILE):
+        with open(USERS_FILE, mode="r", newline="") as f:
+            reader = csv.reader(f)
+
+            for row in reader:
+                if len(row) >= 1 and row[0] == username:
+                    return False, "Username already exists!"
+
+    salt = secrets.token_hex(16)
+    password_hash = hash_password(password, salt)
+
+    with open(USERS_FILE, mode="a", newline="") as f:
         writer = csv.writer(f)
-        #Hashing the password
-        salt = '5gz'
-        pwd_salt = salt + password
-        hashed = hashlib.sha256(pwd_salt.encode())
-        print(hashed.hexdigest())
-    
-        #Username, password, number of wins 
-        writer.writerow([username, password, 0]) 
-    return True, "Account created! Please login." 
+        writer.writerow([username, password_hash, salt, 0])
+
+    return True, "Account created! Please login."
  
 
 #Login to an existing account
-def login(username, password): 
+def login(username, password):
+    if not os.path.exists(USERS_FILE):
+        return False
 
-    # Check if the CSV file exists 
-    if not os.path.exists("users.csv"): 
-       return False 
-     
-    #Open the CSV file 
-    with open("users.csv", mode="r", newline="") as f: 
-           reader = csv.reader(f) 
-         
-           #Check every row 
-           for row in reader: 
-         
-               if len(row) >= 2: 
-                   #Check username and password 
-                   if row[0] == username and row[1] == password: 
-                       return True 
-         
+    with open(USERS_FILE, mode="r", newline="") as f:
+        reader = csv.reader(f)
+
+        for row in reader:
+            if len(row) >= 3:
+                stored_hash = row[1]
+                salt = row[2]
+
+                if row[0] == username:
+                    entered_hash = hash_password(password, salt)
+                    return entered_hash == stored_hash
+
     return False
  
 
@@ -230,9 +217,6 @@ register_password2_box = InputBox(300,300,220,45)
 login_username_box = InputBox(300,170,220,45) 
 login_password_box = InputBox(300,250,220,45)
 
-#Instructions box
-instruction_box = InputBox(300,170,220,45)
-
 #Variables
 run = True 
 
@@ -351,10 +335,10 @@ while run:
            screen_state = "menu" 
            message = "" 
 
-       #Instructions screen
-       elif screen_state == "Instructions":
-           #Instructions screen will go here
-           print("Insturction clicked")
+    #Instructions screen
+    elif screen_state == "Instructions":
+        #Instructions screen will go here
+        print("Insturction clicked")
            
            #Display message
            draw_text(message,small_font,message_colour,180,410) 
@@ -387,6 +371,9 @@ while run:
     #Update display 
     pygame.display.update() 
 
+#Set frames per second
+clock.tick(60)
+pygame.display.update()
 
 #Close pygame
 pygame.quit() 
