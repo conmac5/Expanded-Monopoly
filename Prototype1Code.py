@@ -1,11 +1,16 @@
 #Prototype 1 code for my NEA. This includes registration and logging into a account.
 
 import pygame
+from pathlib import Path
 import csv
 import os
+USERS_FILE = Path(__file__).with_name("users.csv")
 import hashlib
 
 pygame.init() 
+
+if os.path.exists(USERS_FILE):
+    with open(USERS_FILE, mode="r", newline="") as f:
 
 #Window screen setup
 screen_width = 800
