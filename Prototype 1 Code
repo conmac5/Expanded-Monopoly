@@ -1,3 +1,5 @@
+#Prototype 1 code for my NEA. This includes registration and logging into a account.
+
 import pygame
 import csv
 import os
