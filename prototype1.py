@@ -12,12 +12,11 @@ USERS_FILE = Path(__file__).with_name("users.csv")
 pygame.init()
 
 clock = pygame.time.Clock()
+screen = None
 
 #Window screen setup
 screen_width = 800
 screen_height = 600
-screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("Monopoly - Login/Registration")
 
 #Colours
 dark_bg = (30, 30, 30)
@@ -59,7 +58,7 @@ def register(username, password, password2):
         return False, "Password length is too short"
 
     #Check whether the username already exists
-    if os.path.exists(USERS_FILE):
+    if USERS_FILE.exists():
         with open(USERS_FILE, mode="r", newline="") as f:
             reader = csv.reader(f)
 
@@ -81,7 +80,7 @@ def register(username, password, password2):
 #Login to an existing account
 def login(username, password):
     # Check if the CSV file exists
-    if not os.path.exists(USERS_FILE):
+    if not USERS_FILE.exists():
         return False
 
     #Open the CSV file
@@ -90,22 +89,87 @@ def login(username, password):
 
         #Check every row
         for row in reader:
+            if not row or row[0] != username:
+                continue
+
             #Support the existing username,password,wins format
-            if len(row) == 3 and row[0] == username:
-                try:
-                    entered_hash = hash_password(password, "5gz")
-                    if row[1] == entered_hash:
-                        return True
-                except Exception:
-                    pass
+            if len(row) == 3:
+                #Older Prototype 1 files stored the password as plain text.
+                if row[1] == password:
+                    return True
+
+                #Also allow the fixed-salt hash used in an earlier version.
+                if row[1] == hash_password(password, "5gz"):
+                    return True
 
             #Check username and password using the secure format
             if len(row) >= 4:
-                if row[0] == username:
-                    entered_hash = hash_password(password, row[2])
-                    return entered_hash == row[1]
+                salt = row[2]
+                entered_hash = hash_password(password, salt)
+                return secrets.compare_digest(entered_hash, row[1])
 
     return False
+
+#Get the usernames and win totals from the CSV
+#Supports both the older username,password,wins and the newer hashed-password format
+def get_wins():
+    players = []
+
+    if not USERS_FILE.exists():
+        return players
+
+    with open(USERS_FILE, mode="r", newline="") as f:
+        reader = csv.reader(f)
+
+        for row in reader:
+            if len(row) >= 4:
+                username = row[0]
+                wins_value = row[3]
+            elif len(row) >= 3:
+                username = row[0]
+                wins_value = row[2]
+            else:
+                continue
+
+            try:
+                wins = int(wins_value)
+            except ValueError:
+                wins = 0
+
+            players.append((username, wins))
+
+    return players
+
+#Add one win to the account's win total
+def add_win(username):
+    if not USERS_FILE.exists():
+        return
+
+    rows = []
+
+    with open(USERS_FILE, mode="r", newline="") as f:
+        reader = csv.reader(f)
+
+        for row in reader:
+            if row and row[0] == username:
+                if len(row) >= 4:
+                    wins_index = 3
+                elif len(row) >= 3:
+                    wins_index = 2
+                else:
+                    rows.append(row)
+                    continue
+
+                try:
+                    row[wins_index] = str(int(row[wins_index]) + 1)
+                except ValueError:
+                    row[wins_index] = "1"
+
+            rows.append(row)
+
+    with open(USERS_FILE, mode="w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerows(rows)
 
 #Create button images
 def create_button_image(text,width,height,bg_colour,text_colour,border_colour):
@@ -252,10 +316,18 @@ message_colour = white
 logged_in_username = ""
 
 #Game Loop
-def main():
-    global run, screen_state, message, message_colour, logged_in_username
+def main(login_only=False):
+    global run, screen, screen_state, message, message_colour, logged_in_username
+
+    run = True
+    screen = pygame.display.set_mode((screen_width, screen_height))
+    pygame.display.set_caption("Monopoly - Login/Registration")
 
     while run:
+        #When Prototype 2 is using this login UI, return the authenticated player to it.
+        if login_only and screen_state == "game":
+            return logged_in_username
+
         #Fill background
         screen.fill(background_colour)
 
@@ -382,7 +454,6 @@ def main():
         for event in pygame.event.get():
             #Close window
             if event.type == pygame.QUIT:
-                global run
                 run = False
 
             #Registration input
@@ -399,6 +470,26 @@ def main():
         #Update display
         clock.tick(60)
         pygame.display.update()
+
+    return None
+
+# Run the login screens and return the username when login succeeds.
+def authenticate():
+    global run, screen_state, message, message_colour, logged_in_username
+
+    run = True
+    screen_state = "menu"
+    message = ""
+    message_colour = white
+    logged_in_username = ""
+
+    register_username_box.text = ""
+    register_password_box.text = ""
+    register_password2_box.text = ""
+    login_username_box.text = ""
+    login_password_box.text = ""
+
+    return main(login_only=True)
 
 #Close pygame
 if __name__ == "__main__":
