@@ -1,3 +1,4 @@
+
 #Prototype 2 Code of NEA. This includes game-mode selection, checking wins and piece selection, as well as moving on to the actual main board.
 import pygame
 import prototype1
@@ -6,8 +7,8 @@ pygame.init()
 
 #WINDOW SETUP
 
-screen_width = 1000
-screen_height = 700
+screen_width = 1200
+screen_height = 850
 
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Monopoly")
@@ -38,6 +39,7 @@ pink = (240, 130, 180)
 light_grey = (220, 220, 220)
 dark_grey = (80, 80, 80)
 silver = (192,192,192)
+
 # FONTS
 
 font = pygame.font.SysFont("arialblack", 40)
@@ -215,7 +217,7 @@ logout_btn_img = create_button_image(
 # BUTTON OBJECTS
 
 instruction_button = Button(
-    390,
+    490,
     350,
     instruction_btn_img
 )
@@ -227,13 +229,13 @@ back_button = Button(
 )
 
 wins_button = Button(
-    390,
-    470,
+    490,
+    570,
     wins_btn_img
 )
 
 logout_button = Button(
-    820,
+    1030,
     20,
     logout_btn_img
 )
@@ -379,18 +381,18 @@ for i in range(len(pieces)):
     column = i % 4
     row = i // 4
 
-    x = 60 + column * 230
-    y = 160 + row * 220
+    x = 150 + column * 240
+    y = 200 + row * 220
 
-    piece_rects.append(pygame.Rect(x,y,190,180))
+    piece_rects.append(pygame.Rect(x,y,200,180))
 
 
 # DRAW PIECE SELECTION SCREEN
 
 def draw_piece_selection():
 
-    draw_centered_text("CHOOSE YOUR MONOPOLY PIECE",title_font,white_text,screen_width // 2,65)
-    draw_centered_text("Click a piece to select it",small_font,white_text,screen_width // 2,115)
+    draw_centered_text("CHOOSE YOUR MONOPOLY PIECE",title_font,white_text,screen_width // 2,85)
+    draw_centered_text("Click a piece to select it",small_font,white_text,screen_width // 2,140)
 
     mouse_pos = pygame.mouse.get_pos()
 
@@ -412,7 +414,7 @@ def draw_piece_selection():
         draw_centered_text(piece,tiny_font,white_text,rect.centerx,rect.bottom - 25)
 
     if selected_piece is not None:
-        draw_centered_text("Selected: " + selected_piece,small_font,yellow,screen_width // 2,625)
+        draw_centered_text("Selected: " + selected_piece,small_font,yellow,screen_width // 2,660)
 
 
 # GAME MODE SELECTION
@@ -428,13 +430,13 @@ selected_mode = None
 mode_rects = []
 
 for i in range(3):
-    mode_rects.append(pygame.Rect(150 + i * 270,230,230,180))
+    mode_rects.append(pygame.Rect(150 + i * 320,300,270,200))
 
 
 def draw_mode_selection():
 
-    draw_centered_text("CHOOSE GAME MODE",title_font,white_text,screen_width // 2,80)
-    draw_centered_text("Select how you want to play",small_font,white_text,screen_width // 2,135)
+    draw_centered_text("CHOOSE GAME MODE",title_font,white_text,screen_width // 2,110)
+    draw_centered_text("Select how you want to play",small_font,white_text,screen_width // 2,170)
 
     mouse_pos = pygame.mouse.get_pos()
 
@@ -464,20 +466,20 @@ def draw_mode_selection():
         draw_centered_text(description,tiny_font,light_grey,rect.centerx,rect.centery + 35)
 
     if selected_mode is not None:
-        draw_centered_text("Selected: " + selected_mode,small_font,yellow,screen_width // 2,500)
+        draw_centered_text("Selected: " + selected_mode,small_font,yellow,screen_width // 2,560)
 
 
 # GAME START SCREEN
 
 def draw_game_start():
 
-    draw_centered_text("GAME READY",title_font,white_text,screen_width // 2,100)
-    draw_centered_text("Mode: " + selected_mode,small_font,white_text,screen_width // 2,240)
-    draw_centered_text("Piece: " + selected_piece,small_font,white_text,screen_width // 2,290)
+    draw_centered_text("GAME READY",title_font,white_text,screen_width // 2,130)
+    draw_centered_text("Mode: " + selected_mode,small_font,white_text,screen_width // 2,300)
+    draw_centered_text("Piece: " + selected_piece,small_font,white_text,screen_width // 2,350)
 
-    draw_piece(selected_piece,screen_width // 2,390,1.5)
+    draw_piece(selected_piece,screen_width // 2,480,1.5)
 
-    draw_centered_text("The actual Monopoly board can now be started.",tiny_font,light_grey,screen_width // 2,500)
+    draw_centered_text("The actual Monopoly board can now be started.",tiny_font,light_grey,screen_width // 2,600)
 
 
 # GAME BUTTONS
@@ -485,19 +487,19 @@ def draw_game_start():
 start_game_img = create_button_image("Start Game",220,60,dark_bg,white_text,grey_border)
 continue_img = create_button_image("Continue",220,60,dark_bg,white_text,grey_border)
 
-start_game_button = Button(390,550,start_game_img)
-continue_button = Button(390,550,continue_img)
+start_game_button = Button(490,650,start_game_img)
+continue_button = Button(490,650,continue_img)
 
 
 # WIN SCREEN
 
 def draw_wins_screen():
 
-    draw_centered_text("MONOPOLY WIN RECORDS",title_font,white_text,screen_width // 2,70)
-    draw_centered_text("Wins are read from users.csv",small_font,light_grey,screen_width // 2,125)
+    draw_centered_text("MONOPOLY WIN RECORDS",title_font,white_text,screen_width // 2,100)
+    draw_centered_text("Wins are read from users.csv",small_font,light_grey,screen_width // 2,160)
 
-    table_x = 250
-    table_y = 180
+    table_x = 350
+    table_y = 230
     table_width = 500
 
     pygame.draw.rect(screen,dark_bg,(table_x,table_y,table_width,60))
@@ -522,9 +524,8 @@ def draw_wins_screen():
             draw_text(str(wins),small_font,text_colour,table_x + 365,y + 12)
 
             y += 55
-            if y > 600:
+            if y > 750:
                 break
-
 
 # VARIABLES
 
@@ -589,9 +590,9 @@ def main():
         # GAME MENU
         if screen_state == "game_menu":
 
-            draw_centered_text("MONOPOLY GAME",title_font,white_text,screen_width // 2,80)
+            draw_centered_text("MONOPOLY GAME",title_font,white_text,screen_width // 2,120)
 
-            draw_centered_text("Logged in as: " + logged_in_username,small_font,white_text,screen_width // 2,145)
+            draw_centered_text("Logged in as: " + logged_in_username,small_font,white_text,screen_width // 2,200)
 
             if start_game_button.draw(screen):
                 selected_mode = None
@@ -662,7 +663,7 @@ def main():
         # INSTRUCTIONS
         elif screen_state == "instructions":
 
-            draw_centered_text("INSTRUCTIONS",title_font,white_text,screen_width // 2,70)
+            draw_centered_text("INSTRUCTIONS",title_font,white_text,screen_width // 2,100)
 
             instructions = [
                 "1. Create an account or login.",
@@ -673,11 +674,11 @@ def main():
                 "6. Check Wins displays the current win records."
             ]
 
-            y = 170
+            y = 240
 
             for instruction in instructions:
-                draw_text(instruction,small_font,white_text,180,y)
-                y += 55
+                draw_text(instruction,small_font,white_text,300,y)
+                y += 65
 
             if back_button.draw(screen):
                 screen_state = "menu"
