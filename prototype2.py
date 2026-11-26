@@ -539,7 +539,7 @@ run = True
 # wins
 # instructions
 
-screen_state = "menu"
+screen_state = "game_menu"
 message = ""
 message_colour = white
 logged_in_username = ""
@@ -549,7 +549,19 @@ logged_in_username = ""
 
 def main():
 
-    global run, screen_state, logged_in_username, selected_mode, selected_piece
+    global run, screen, screen_state, logged_in_username, selected_mode, selected_piece
+
+    # Authenticate through Prototype 1 before opening the 1000x700 game window.
+    logged_in_username = prototype1.authenticate()
+
+    # Closing the login window is treated as cancellation.
+    if logged_in_username is None:
+        pygame.quit()
+        return
+
+    # Ensure Prototype 2 has the 1000x700 display after Prototype 1 authenticate() changes it.
+    screen = pygame.display.set_mode((screen_width, screen_height))
+    pygame.display.set_caption("Monopoly")
 
     while run:
 
@@ -574,17 +586,8 @@ def main():
         # DRAW SCREEN
         screen.fill(background_colour)
 
-        # MAIN MENU
-        if screen_state == "menu":
-
-            draw_centered_text("MONOPOLY",title_font,white_text,screen_width // 2,80)
-
-            if back_button.draw(screen):
-                screen_state = "menu"
-                message = ""
-
         # GAME MENU
-        elif screen_state == "game_menu":
+        if screen_state == "game_menu":
 
             draw_centered_text("MONOPOLY GAME",title_font,white_text,screen_width // 2,80)
 
@@ -602,7 +605,13 @@ def main():
                 logged_in_username = ""
                 selected_mode = None
                 selected_piece = None
-                screen_state = "menu"
+                logged_in_username = prototype1.authenticate()
+
+                if logged_in_username is None:
+                    run = False
+                else:
+                    screen = pygame.display.set_mode((screen_width, screen_height))
+                    pygame.display.set_caption("Monopoly")
 
         # MODE SELECTION
         elif screen_state == "mode_selection":
