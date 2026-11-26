@@ -3,7 +3,7 @@
 
 import random
 import pygame
-import prototype1
+import prototype2
 
 # BOARD SPACES
 # Standard 40-space UK Monopoly board.
