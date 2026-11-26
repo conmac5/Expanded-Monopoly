@@ -15,8 +15,8 @@ clock = pygame.time.Clock()
 screen = None
 
 #Window screen setup
-screen_width = 800
-screen_height = 600
+screen_width = 1100
+screen_height = 800
 
 #Colours
 dark_bg = (30, 30, 30)
@@ -282,23 +282,23 @@ login_submit_btn_img = create_button_image("Login",220,60,dark_bg,white_text,gre
 back_btn_img = create_button_image("Back",150,50,dark_bg,white_text,grey_border)
 
 #Create button objects
-register_button = Button(290,150,register_btn_img,1)
-login_button = Button(290,250,login_btn_img,1)
-instruction_button = Button(290,350,instruction_btn_img,1)
-create_account_button = Button(290,430,create_account_btn_img,1)
-login_submit_button = Button(290,330,login_submit_btn_img,1)
+register_button = Button(440,250,register_btn_img,1)
+login_button = Button(440,350,login_btn_img,1)
+instruction_button = Button(440,450,instruction_btn_img,1)
+create_account_button = Button(440,530,create_account_btn_img,1)
+login_submit_button = Button(440,480,login_submit_btn_img,1)
 back_button = Button(20,20,back_btn_img,1)
 
 #Create input boxes
 
 #Registration boxes
-register_username_box = InputBox(300,140,220,45)
-register_password_box = InputBox(300,220,220,45)
-register_password2_box = InputBox(300,300,220,45)
+register_username_box = InputBox(480,260,250,45)
+register_password_box = InputBox(480,340,250,45)
+register_password2_box = InputBox(480,420,250,45)
 
 #Login boxes
-login_username_box = InputBox(300,170,220,45)
-login_password_box = InputBox(300,250,220,45)
+login_username_box = InputBox(480,300,250,45)
+login_password_box = InputBox(480,380,250,45)
 
 #Variables
 run = True
@@ -333,7 +333,7 @@ def main(login_only=False):
 
         #Options menu
         if screen_state == "menu":
-            draw_text("Monopoly Expanded",font,white_text,200,50)
+            draw_text("Monopoly Expanded",font,white_text,350,120)
 
             #Register button
             if register_button.draw(screen):
@@ -354,12 +354,12 @@ def main(login_only=False):
 
         #Register screen
         elif screen_state == "register":
-            draw_text("REGISTER",font,white_text,300,50)
+            draw_text("REGISTER",font,white_text,430,130)
 
             #Labels
-            draw_text("Username:",small_font,white_text,130,150)
-            draw_text("Password:",small_font,white_text,130,230)
-            draw_text("Confirm:",small_font,white_text,130,310)
+            draw_text("Username:",small_font,white_text,330,270)
+            draw_text("Password:",small_font,white_text,330,350)
+            draw_text("Confirm:",small_font,white_text,330,430)
 
             #Draw input boxes
             register_username_box.draw(screen)
@@ -368,7 +368,7 @@ def main(login_only=False):
 
             #Display message
             if message != "":
-                draw_text(message,small_font,message_colour,150,380)
+                draw_text(message,small_font,message_colour,350,500)
 
             #Create account button
             if create_account_button.draw(screen):
@@ -395,11 +395,11 @@ def main(login_only=False):
 
         #Login screen
         elif screen_state == "login":
-            draw_text("LOGIN",font,white_text,320,70)
+            draw_text("LOGIN",font,white_text,475,180)
 
             #Labels
-            draw_text("Username:",small_font,white_text,130,180)
-            draw_text("Password:",small_font,white_text,130,260)
+            draw_text("Username:",small_font,white_text,330,310)
+            draw_text("Password:",small_font,white_text,330,390)
 
             #Draw input boxes
             login_username_box.draw(screen)
@@ -407,7 +407,7 @@ def main(login_only=False):
 
             #Display message
             if message != "":
-                draw_text(message,small_font,message_colour,180,410)
+                draw_text(message,small_font,message_colour,350,440)
 
             #Login button
             if login_submit_button.draw(screen):
@@ -437,7 +437,7 @@ def main(login_only=False):
 
         #Instructions screen
         elif screen_state == "Instructions":
-            draw_text("INSTRUCTIONS",font,white_text,270,50)
+            draw_text("INSTRUCTIONS",font,white_text,400,130)
             #Instructions screen will go here
 
             #Back button
@@ -447,8 +447,8 @@ def main(login_only=False):
 
         #Game screen
         elif screen_state == "game":
-            draw_text("Options screen",font,white_text,180,200)
-            draw_text("Logged in as: " + logged_in_username,small_font,white_text,270,270)
+            draw_text("Options screen",font,white_text,400,300)
+            draw_text("Logged in as: " + logged_in_username,small_font,white_text,420,370)
 
         #Event handler
         for event in pygame.event.get():
