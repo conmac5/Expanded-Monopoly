@@ -3,6 +3,9 @@ import pygame
 import prototype1.py
 pygame.init()
 
+if __name__ == "__main__":
+    main()
+
 success, message = prototype1.register(username, password, password2)
 logged_in = prototype1.login(username, password)
 players = prototype1.get_wins()
