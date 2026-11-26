@@ -5,13 +5,13 @@
 
 import pygame
 import prototype1
-
+import prototype3
 pygame.init()
 
 # WINDOW SETUP
 
-screen_width = 1200
-screen_height = 850
+screen_width = 1600
+screen_height = 1000
 
 screen = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Monopoly")
@@ -115,31 +115,23 @@ class Button:
         self.rect = self.image.get_rect()
         self.rect.topleft = (x, y)
 
-        self.clicked = False
-
     def draw(self, surface):
 
-        action = False
+        surface.blit(self.image, self.rect)
 
-        pos = pygame.mouse.get_pos()
+    def handle_event(self, event):
 
-        if self.rect.collidepoint(pos):
+        if event.type == pygame.MOUSEBUTTONDOWN:
 
-            if pygame.mouse.get_pressed()[0] == 1:
+            if event.button == 1:
 
-                if self.clicked is False:
+                if self.rect.collidepoint(event.pos):
 
-                    self.clicked = True
-                    action = True
+                    return True
 
-        if pygame.mouse.get_pressed()[0] == 0:
-            self.clicked = False
+        return False
 
-        surface.blit(self.image, (self.rect.x, self.rect.y))
-
-        return action
-
-
+    
 # INPUT BOX
 
 class InputBox:
@@ -220,13 +212,29 @@ logout_btn_img = create_button_image(
 
 # BUTTON OBJECTS
 
-instruction_button = Button(490, 350, instruction_btn_img)
+back_button = Button(
+    30,
+    30,
+    back_btn_img
+)
 
-back_button = Button(20, 20, back_btn_img)
+wins_button = Button(
+    (screen_width - 220) // 2,
+    570,
+    wins_btn_img
+)
 
-wins_button = Button(490, 570, wins_btn_img)
+instruction_button = Button(
+    (screen_width - 220) // 2,
+    660,
+    instruction_btn_img
+)
 
-logout_button = Button(1030, 20, logout_btn_img)
+logout_button = Button(
+    screen_width - 180,
+    30,
+    logout_btn_img
+)
 
 
 # MONOPOLY PIECES
@@ -460,21 +468,57 @@ def draw_piece_selection():
 
     draw_centered_text(
         "CHOOSE YOUR MONOPOLY PIECE",
-        title_font, white_text,
-        screen_width // 2, 85
+        title_font,
+        white_text,
+        screen_width // 2,
+        100
     )
 
     draw_centered_text(
         "Click a piece to select it",
-        small_font, white_text,
-        screen_width // 2, 140
+        small_font,
+        white_text,
+        screen_width // 2,
+        165
     )
 
     mouse_pos = pygame.mouse.get_pos()
 
+    # Four columns and two rows, centred on the screen.
+
+    card_width = 240
+    card_height = 200
+
+    horizontal_gap = 35
+    vertical_gap = 35
+
+    total_width = card_width * 4 + horizontal_gap * 3
+
+    start_x = (screen_width - total_width) // 2
+
+    total_height = card_height * 2 + vertical_gap
+
+    start_y = (
+        screen_height - total_height
+    ) // 2
+
     for i, piece in enumerate(pieces):
 
-        rect = piece_rects[i]
+        column = i % 4
+        row = i // 4
+
+        x = start_x + column * (card_width + horizontal_gap)
+        y = start_y + row * (card_height + vertical_gap)
+
+        rect = pygame.Rect(
+            x,
+            y,
+            card_width,
+            card_height
+        )
+
+        piece_rects[i] = rect
+
         border_colour = grey_border
 
         if selected_piece == piece:
@@ -484,13 +528,18 @@ def draw_piece_selection():
             border_colour = white
 
         pygame.draw.rect(
-            screen, (45, 45, 45),
-            rect, border_radius=10
+            screen,
+            (45, 45, 45),
+            rect,
+            border_radius=10
         )
 
         pygame.draw.rect(
-            screen, border_colour,
-            rect, 4, border_radius=10
+            screen,
+            border_colour,
+            rect,
+            4,
+            border_radius=10
         )
 
         draw_piece(
@@ -501,16 +550,21 @@ def draw_piece_selection():
         )
 
         draw_centered_text(
-            piece, tiny_font, white_text,
-            rect.centerx, rect.bottom - 25
+            piece,
+            tiny_font,
+            white_text,
+            rect.centerx,
+            rect.bottom - 28
         )
 
     if selected_piece is not None:
 
         draw_centered_text(
             "Selected: " + selected_piece,
-            small_font, yellow,
-            screen_width // 2, 660
+            small_font,
+            yellow,
+            screen_width // 2,
+            start_y + total_height + 35
         )
 
 
@@ -537,21 +591,44 @@ def draw_mode_selection():
 
     draw_centered_text(
         "CHOOSE GAME MODE",
-        title_font, white_text,
-        screen_width // 2, 110
+        title_font,
+        white_text,
+        screen_width // 2,
+        130
     )
 
     draw_centered_text(
         "Select how you want to play",
-        small_font, white_text,
-        screen_width // 2, 170
+        small_font,
+        white_text,
+        screen_width // 2,
+        210
     )
 
     mouse_pos = pygame.mouse.get_pos()
 
+    # Calculate positions relative to the screen width.
+
+    card_width = 350
+    card_height = 220
+    gap = 45
+
+    total_width = card_width * 3 + gap * 2
+
+    start_x = (screen_width - total_width) // 2
+
+    card_y = (screen_height - card_height) // 2
+
     for i, mode in enumerate(game_modes):
 
-        rect = mode_rects[i]
+        rect = pygame.Rect(
+            start_x + i * (card_width + gap),
+            card_y,
+            card_width,
+            card_height
+        )
+
+        mode_rects[i] = rect
 
         if selected_mode == mode:
             border_colour = yellow
@@ -563,46 +640,55 @@ def draw_mode_selection():
             border_colour = grey_border
 
         pygame.draw.rect(
-            screen, dark_bg,
-            rect, border_radius=10
+            screen,
+            dark_bg,
+            rect,
+            border_radius=10
         )
 
         pygame.draw.rect(
-            screen, border_colour,
-            rect, 4, border_radius=10
+            screen,
+            border_colour,
+            rect,
+            4,
+            border_radius=10
         )
 
         draw_centered_text(
-            mode, small_font, white_text,
-            rect.centerx, rect.centery - 15
+            mode,
+            small_font,
+            white_text,
+            rect.centerx,
+            rect.centery - 25
         )
 
         if mode == "Speed Monopoly":
-
             description = "A faster version of Monopoly"
 
         elif mode == "Original Monopoly":
-
             description = "Classic Monopoly rules"
 
         else:
-
             description = "First player to pass Go wins"
 
         draw_centered_text(
-            description, tiny_font, light_grey,
-            rect.centerx, rect.centery + 35
+            description,
+            tiny_font,
+            light_grey,
+            rect.centerx,
+            rect.centery + 35
         )
 
     if selected_mode is not None:
 
         draw_centered_text(
             "Selected: " + selected_mode,
-            small_font, yellow,
-            screen_width // 2, 560
+            small_font,
+            yellow,
+            screen_width // 2,
+            card_y + card_height + 65
         )
-
-
+        
 # GAME START SCREEN
 
 def draw_game_start():
@@ -653,9 +739,17 @@ continue_img = create_button_image(
     dark_bg, white_text, grey_border
 )
 
-start_game_button = Button(490, 650, start_game_img)
+start_game_button = Button(
+    (screen_width - 220) // 2,
+    screen_height - 110,
+    start_game_img
+)
 
-continue_button = Button(490, 650, continue_img)
+continue_button = Button(
+    (screen_width - 220) // 2,
+    screen_height - 110,
+    continue_img
+)
 
 
 # WIN SCREEN
@@ -768,55 +862,131 @@ logged_in_username = ""
 
 # MAIN GAME LOOP
 
+
 def main():
 
-    global run, screen, screen_state, logged_in_username, selected_mode, selected_piece
+    global run, screen, screen_state, logged_in_username
+    global selected_mode, selected_piece
 
-    # Authenticate through Prototype 1 before opening the game window.
+    # Authenticate through Prototype 1.
     logged_in_username = prototype1.authenticate()
 
-    # Closing the login window is treated as cancellation.
     if logged_in_username is None:
         pygame.quit()
         return
 
-    # Set up the larger Prototype 2 display.
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption("Monopoly")
 
-    # Main game loop
     while run:
 
         # EVENT HANDLING
         for event in pygame.event.get():
 
-            # QUIT GAME
             if event.type == pygame.QUIT:
                 run = False
 
+            # GAME MENU BUTTONS
+            elif screen_state == "game_menu":
+
+                if start_game_button.handle_event(event):
+
+                    selected_mode = None
+                    selected_piece = None
+                    screen_state = "mode_selection"
+
+                elif wins_button.handle_event(event):
+
+                    screen_state = "wins"
+
+                elif instruction_button.handle_event(event):
+
+                    screen_state = "instructions"
+
+                elif logout_button.handle_event(event):
+
+                    logged_in_username = ""
+                    selected_mode = None
+                    selected_piece = None
+
+                    logged_in_username = prototype1.authenticate()
+
+                    if logged_in_username is None:
+                        run = False
+                    else:
+                        screen = pygame.display.set_mode(
+                            (screen_width, screen_height)
+                        )
+                        pygame.display.set_caption("Monopoly")
+
             # MODE SELECTION
-            if (
-                screen_state == "mode_selection"
-                and event.type == pygame.MOUSEBUTTONDOWN
-                and event.button == 1
-            ):
+            elif screen_state == "mode_selection":
 
-                for i, rect in enumerate(mode_rects):
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 
-                    if rect.collidepoint(event.pos):
-                        selected_mode = game_modes[i]
+                    for i, rect in enumerate(mode_rects):
+
+                        if rect.collidepoint(event.pos):
+                            selected_mode = game_modes[i]
+
+                if back_button.handle_event(event):
+                    screen_state = "game_menu"
+
+                elif selected_mode is not None:
+
+                    if continue_button.handle_event(event):
+
+                        selected_piece = None
+                        screen_state = "piece_selection"
 
             # PIECE SELECTION
-            if (
-                screen_state == "piece_selection"
-                and event.type == pygame.MOUSEBUTTONDOWN
-                and event.button == 1
-            ):
+            elif screen_state == "piece_selection":
 
-                for i, rect in enumerate(piece_rects):
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
 
-                    if rect.collidepoint(event.pos):
-                        selected_piece = pieces[i]
+                    for i, rect in enumerate(piece_rects):
+
+                        if rect.collidepoint(event.pos):
+                            selected_piece = pieces[i]
+
+                if back_button.handle_event(event):
+                    screen_state = "mode_selection"
+
+                elif selected_piece is not None:
+
+                    if continue_button.handle_event(event):
+                        screen_state = "game_ready"
+
+            # GAME READY SCREEN
+            elif screen_state == "game_ready":
+
+                if back_button.handle_event(event):
+                    screen_state = "piece_selection"
+
+                elif start_game_button.handle_event(event):
+
+                    prototype3.run_game(
+                        screen,
+                        clock,
+                        logged_in_username,
+                        selected_piece,
+                        selected_mode,
+                        prototype1.add_win
+                    )
+
+                    screen_state = "game_menu"
+
+            # WIN RECORDS
+            elif screen_state == "wins":
+
+                if back_button.handle_event(event):
+                    screen_state = "game_menu"
+
+            # INSTRUCTIONS
+            elif screen_state == "instructions":
+
+                if back_button.handle_event(event):
+                    screen_state = "game_menu"
 
         # DRAW BACKGROUND
         screen.fill(background_colour)
@@ -840,110 +1010,41 @@ def main():
                 200
             )
 
-            # START GAME BUTTON
-            if start_game_button.draw(screen):
-
-                selected_mode = None
-                selected_piece = None
-
-                screen_state = "mode_selection"
-
-            # CHECK WINS BUTTON
-            if wins_button.draw(screen):
-
-                screen_state = "wins"
-
-            # INSTRUCTIONS BUTTON
-            if instruction_button.draw(screen):
-
-                screen_state = "instructions"
-
-            # LOGOUT BUTTON
-            if logout_button.draw(screen):
-
-                logged_in_username = ""
-
-                selected_mode = None
-                selected_piece = None
-
-                # Return to Prototype 1 login screen.
-                logged_in_username = prototype1.authenticate()
-
-                if logged_in_username is None:
-
-                    run = False
-
-                else:
-
-                    # Restore Prototype 2 window.
-                    screen = pygame.display.set_mode(
-                        (screen_width, screen_height)
-                    )
-
-                    pygame.display.set_caption("Monopoly")
+            start_game_button.draw(screen)
+            wins_button.draw(screen)
+            instruction_button.draw(screen)
+            logout_button.draw(screen)
 
         # MODE SELECTION
         elif screen_state == "mode_selection":
 
             draw_mode_selection()
+            back_button.draw(screen)
 
-            # BACK BUTTON
-            if back_button.draw(screen):
-
-                screen_state = "game_menu"
-
-            # CONTINUE BUTTON
             if selected_mode is not None:
-
-                if continue_button.draw(screen):
-
-                    selected_piece = None
-
-                    screen_state = "piece_selection"
+                continue_button.draw(screen)
 
         # PIECE SELECTION
         elif screen_state == "piece_selection":
 
             draw_piece_selection()
+            back_button.draw(screen)
 
-            # BACK BUTTON
-            if back_button.draw(screen):
-
-                screen_state = "mode_selection"
-
-            # CONTINUE BUTTON
             if selected_piece is not None:
+                continue_button.draw(screen)
 
-                if continue_button.draw(screen):
-
-                    screen_state = "game_ready"
-
-        # GAME READY SCREEN
+        # GAME READY
         elif screen_state == "game_ready":
 
             draw_game_start()
-
-            # BACK BUTTON
-            if back_button.draw(screen):
-
-                screen_state = "piece_selection"
-
-            # START GAME BUTTON
-            if start_game_button.draw(screen):
-
-                # The actual Monopoly board will eventually
-                # be launched here.
-                screen_state = "game_menu"
+            back_button.draw(screen)
+            start_game_button.draw(screen)
 
         # WIN RECORDS
         elif screen_state == "wins":
 
             draw_wins_screen()
-
-            # BACK BUTTON
-            if back_button.draw(screen):
-
-                screen_state = "game_menu"
+            back_button.draw(screen)
 
         # INSTRUCTIONS
         elif screen_state == "instructions":
@@ -957,19 +1058,12 @@ def main():
             )
 
             instructions = [
-
                 "1. Create an account or login.",
-
                 "2. Select a Monopoly game mode.",
-
                 "3. Select your Monopoly playing piece.",
-
                 "4. Start the game.",
-
                 "5. Your wins are stored in users.csv.",
-
                 "6. Check Wins displays the current win records."
-
             ]
 
             y = 240
@@ -986,19 +1080,13 @@ def main():
 
                 y += 65
 
-            # BACK BUTTON
-            if back_button.draw(screen):
+            back_button.draw(screen)
 
-                screen_state = "game_menu"
-
-        # UPDATE DISPLAY
         pygame.display.flip()
-
-        # LIMIT GAME TO 60 FPS
         clock.tick(60)
 
 
-# CLOSE PYGAME
+#CLOSE PYGAME
 
 if __name__ == "__main__":
 
